@@ -1,10 +1,12 @@
-from gpt_index import SimpleDirectoryReader, GPTListIndex, GPTSimpleVectorIndex, LLMPredictor, PromptHelper
+from gpt_index import SimpleDirectoryReader, ServiceContext, GPTSimpleVectorIndex, LLMPredictor, PromptHelper
 from langchain import OpenAI
 import gradio as gr
-import sys
 import os
 
-os.environ["OPENAI_API_KEY"] = 'Your API Key'
+with open('secret_key.txt', 'r') as file:
+    api_key = file.read()
+
+os.environ["OPENAI_API_KEY"] = api_key
 
 def construct_index(directory_path):
     max_input_size = 4096
@@ -13,13 +15,10 @@ def construct_index(directory_path):
     chunk_size_limit = 600
 
     prompt_helper = PromptHelper(max_input_size, num_outputs, max_chunk_overlap, chunk_size_limit=chunk_size_limit)
-
     llm_predictor = LLMPredictor(llm=OpenAI(temperature=0.7, model_name="text-davinci-003", max_tokens=num_outputs))
-
+    service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor, prompt_helper=prompt_helper)
     documents = SimpleDirectoryReader(directory_path).load_data()
-
-    index = GPTSimpleVectorIndex(documents, llm_predictor=llm_predictor, prompt_helper=prompt_helper)
-
+    index = GPTSimpleVectorIndex.from_documents(documents, service_context=service_context)
     index.save_to_disk('index.json')
 
     return index
